@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bobo Contra</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <canvas id="game" width="720" height="1280" aria-label="Bobo Contra game canvas"></canvas>
+
+      <section class="hud" aria-label="Status permainan">
+        <div class="meter">
+          <span>HP</span>
+          <div class="bar"><i id="hpBar"></i></div>
+        </div>
+        <div class="stat">
+          <span>Skor</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="stat">
+          <span>Gelombang</span>
+          <strong id="wave">1</strong>
+        </div>
+        <button id="pauseBtn" type="button" title="Pause">II</button>
+      </section>
+
+      <section class="overlay" id="overlay">
+        <h1>Bobo Contra</h1>
+        <p>Bobo berlari otomatis. Tap layar atau tekan panah atas untuk lompat.</p>
+        <button id="startBtn" type="button">Mulai</button>
+      </section>
+
+      <section class="touch-controls" aria-label="Kontrol sentuh">
+        <button data-tap="jump" aria-label="Lompat">↑</button>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
