@@ -6,12 +6,19 @@ const waveEl = document.getElementById("wave");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
+const endTitle = document.getElementById("endTitle");
+const statCoins = document.getElementById("statCoins");
+const statMonsters = document.getElementById("statMonsters");
+const statScore = document.getElementById("statScore");
 
 const W = 720;
 const H = 1280;
 const gravity = 2100;
 const groundY = 788;
 const autoRunSpeed = 255;
+const levelFile = "levels/level-1.json";
+const defaultTileW = 180;
+const bulletDamage = 18;
 const keys = new Set();
 const music = new Audio("assets/jungle-dash.mp3");
 music.loop = true;
@@ -24,14 +31,17 @@ const assets = {
   idle: loadImage("assets/rabbit-idle-spritesheet.png"),
   background: loadImage("assets/mobile-background.png"),
   land: loadImage("assets/land-platform.png"),
-  tree: loadImage("assets/pohon.png")
+  tree: loadImage("assets/pohon.png"),
+  coin: loadImage("assets/koin.png")
 };
 
 const runFrames = [
   { sx: 0, sy: 0, sw: 500, sh: 500 },
   { sx: 500, sy: 0, sw: 500, sh: 500 },
   { sx: 1000, sy: 0, sw: 500, sh: 500 },
-  { sx: 1500, sy: 0, sw: 500, sh: 500 }
+  { sx: 1500, sy: 0, sw: 500, sh: 500 },
+  { sx: 2000, sy: 0, sw: 500, sh: 500 },
+  { sx: 2500, sy: 0, sw: 500, sh: 500 }
 ];
 
 const idleFrames = [
@@ -53,15 +63,22 @@ let gameOver = false;
 let started = false;
 let camera = 0;
 let score = 0;
+let coinsCollected = 0;
+let monstersDefeated = 0;
+let shotsFired = 0;
+let elapsedTime = 0;
 let wave = 1;
 let spawnTimer = 0;
 let shake = 0;
-const levelPlatforms = createRunnerPlatforms();
+let levelReady = false;
+let pendingLevelStart = false;
+let levelObjects = [];
+let monsterSpawns = [];
 
 const world = {
   width: 30000,
-  platforms: levelPlatforms,
-  coins: createCoins(levelPlatforms)
+  platforms: [],
+  coins: []
 };
 
 const player = {
@@ -85,13 +102,87 @@ let drops = [];
 let enemies = [];
 let particles = [];
 
+applyLevel(createLevelFromCodes(defaultLevelCodes()));
+loadLevelFile(levelFile);
+
 function loadImage(src) {
   const image = new Image();
   image.src = src;
   return image;
 }
 
+async function loadLevelFile(src) {
+  try {
+    const response = await fetch(src, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Level gagal dimuat: ${response.status}`);
+    const text = await response.text();
+    applyLevel(parseLevelData(text));
+  } catch (error) {
+    console.warn("Memakai level bawaan karena file level tidak bisa dibaca.", error);
+  } finally {
+    levelReady = true;
+    if (pendingLevelStart) {
+      pendingLevelStart = false;
+      resetGame();
+    }
+  }
+}
+
+function parseLevelData(text) {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) {
+    return createLevelFromConfig(JSON.parse(trimmed));
+  }
+  return parseLevelText(text);
+}
+
+function parseLevelText(text) {
+  const codes = text
+    .split(/\r?\n/)
+    .map(line => line.replace(/#.*/, ""))
+    .join(",")
+    .split(/[\s,;]+/)
+    .map(value => value.trim())
+    .filter(Boolean)
+    .map(Number);
+
+  if (!codes.length || codes.some(code => ![0, 1, 2, 3].includes(code))) {
+    throw new Error("File level hanya boleh berisi kode 0, 1, 2, dan 3.");
+  }
+
+  return createLevelFromCodes(codes);
+}
+
+function defaultLevelCodes() {
+  return [
+    0, 0, 1, 0, 2, 0, 0, 3, 0, 1, 0, 2,
+    0, 0, 3, 0, 0, 1, 2, 0, 0, 3, 0, 1,
+    0, 2, 0, 0, 3, 0, 1, 0, 0, 2, 0, 3
+  ];
+}
+
+function applyLevel(level) {
+  world.width = level.width;
+  world.platforms = level.platforms;
+  world.coins = level.coins;
+  levelObjects = level.objects;
+  monsterSpawns = level.monsterSpawns;
+}
+
+function setOverlayContent(title, text, showLogo = false) {
+  overlay.querySelector("h1").textContent = title;
+  overlay.querySelector("p").textContent = text;
+  overlay.classList.toggle("show-logo", showLogo);
+  overlay.classList.remove("end-mode");
+}
+
 function resetGame() {
+  if (!levelReady) {
+    pendingLevelStart = true;
+    setOverlayContent("Memuat Level", "Game sedang membaca file level.");
+    startBtn.textContent = "Tunggu";
+    return;
+  }
   started = true;
   player.x = 120;
   player.y = groundY - player.h;
@@ -104,13 +195,17 @@ function resetGame() {
   player.anim = 0;
   bullets = [];
   drops = [];
-  enemies = [];
+  enemies = createInitialEnemies();
   particles = [];
   world.coins.forEach(coin => {
     coin.collected = false;
     coin.spin = 0;
   });
   score = 0;
+  coinsCollected = 0;
+  monstersDefeated = 0;
+  shotsFired = 0;
+  elapsedTime = 0;
   wave = 1;
   spawnTimer = 1.15;
   camera = 0;
@@ -126,29 +221,149 @@ function playMusic() {
   music.play().catch(() => {});
 }
 
-function createRunnerPlatforms() {
+function createLevelFromConfig(config) {
+  const tileWidth = Number(config.tileWidth) || defaultTileW;
+  const legend = config.legend || {};
+  const cells = flattenLevelRows(config.rows || []);
+  if (!cells.length) throw new Error("Level JSON harus punya rows.");
+
+  const normalizedCells = cells.map(symbol => {
+    const cell = legend[symbol];
+    if (!cell) throw new Error(`Kode level "${symbol}" belum ada di legend.`);
+    return {
+      terrain: cell.terrain || "ground",
+      decoration: cell.decoration || null,
+      obstacle: cell.obstacle || null,
+      spawn: cell.spawn || null,
+      item: cell.item || null,
+      coinPattern: cell.coinPattern || null,
+      stairSteps: cell.stairSteps || null
+    };
+  });
+
+  const level = createLevelFromCells(normalizedCells, tileWidth);
+  (config.entities || []).forEach(entity => addLevelEntity(level, entity, tileWidth));
+  return level;
+}
+
+function flattenLevelRows(rows) {
+  return rows.flatMap(row => {
+    if (Array.isArray(row)) return row.map(String);
+    return String(row).trim().split(/\s+/).filter(Boolean);
+  });
+}
+
+function createLevelFromCodes(codes) {
+  return createLevelFromCells(
+    codes.map(code => ({
+      terrain: "ground",
+      decoration: code === 1 ? "tree" : null,
+      obstacle: code === 2 ? "block" : null,
+      spawn: code === 3 ? "monster" : null,
+      item: null,
+      coinPattern: null,
+      stairSteps: null
+    })),
+    defaultTileW
+  );
+}
+
+function createLevelFromCells(cells, tileWidth) {
   const platforms = [];
-  let x = 0;
-  let step = 0;
-  while (x < 30000) {
-    const w = step === 0 ? 1120 : 900 + (step % 4) * 120;
-    platforms.push({ x, y: groundY, w, h: H - groundY });
-    if (step > 0) {
-      if (step % 3 === 1) {
-        addStairObstacle(platforms, x + 260 + (step % 2) * 90);
-      } else {
-        platforms.push({
-          x: x + 260 + (step % 3) * 58,
-          y: groundY - 42,
-          w: 180 + (step % 3) * 34,
-          h: 42
-        });
-      }
+  const objects = [];
+  const monsterSpawns = [];
+  const extraCoins = [];
+
+  cells.forEach((cell, index) => {
+    const x = index * tileWidth;
+    if (cell.terrain === "ground") {
+      platforms.push({ x, y: groundY, w: tileWidth, h: H - groundY });
     }
-    x += w;
-    step++;
+
+    if (cell.decoration === "tree") {
+      objects.push({ type: "tree", x: x + tileWidth / 2 });
+    }
+
+    if (cell.obstacle === "block") {
+      platforms.push({
+        x: x + 32,
+        y: groundY - 74,
+        w: tileWidth - 64,
+        h: 74
+      });
+    }
+
+    if (cell.obstacle === "stairs-up") {
+      addStairPlatforms(platforms, x, tileWidth, 1, cell.stairSteps);
+    }
+
+    if (cell.obstacle === "stairs-down") {
+      addStairPlatforms(platforms, x, tileWidth, -1, cell.stairSteps);
+    }
+
+    if (cell.obstacle === "stairs-peak") {
+      addPeakStairPlatforms(platforms, x, tileWidth, cell.stairSteps);
+    }
+
+    if (cell.spawn === "monster") {
+      monsterSpawns.push({ x: x + tileWidth * 0.42, used: false });
+    }
+
+    if (cell.item === "coin" || cell.coinPattern) {
+      addCoinPattern(extraCoins, cell.coinPattern || "line3-ground", x, tileWidth);
+    }
+  });
+
+  return {
+    width: Math.max(W + 400, cells.length * tileWidth),
+    platforms,
+    objects,
+    monsterSpawns,
+    coins: extraCoins
+  };
+}
+
+function addStairPlatforms(platforms, x, tileWidth, direction, steps = 3) {
+  const count = clamp(Math.round(Number(steps) || 3), 2, 5);
+  const stepW = tileWidth / count;
+  const stepH = 38;
+  for (let i = 0; i < count; i++) {
+    const level = direction > 0 ? i + 1 : count - i;
+    const h = stepH * level;
+    platforms.push({
+      x: x + i * stepW,
+      y: groundY - h,
+      w: stepW + 2,
+      h
+    });
   }
-  return platforms;
+}
+
+function addPeakStairPlatforms(platforms, x, tileWidth, steps = 5) {
+  const count = clamp(Math.round(Number(steps) || 5), 3, 5);
+  const stepW = tileWidth / count;
+  const stepH = 36;
+  const peak = Math.ceil(count / 2);
+  for (let i = 0; i < count; i++) {
+    const level = i < peak ? i + 1 : count - i;
+    const h = stepH * level;
+    platforms.push({
+      x: x + i * stepW,
+      y: groundY - h,
+      w: stepW + 2,
+      h
+    });
+  }
+}
+
+function addLevelEntity(level, entity, tileWidth) {
+  const entityX = Number(entity.x);
+  const entityTile = Number(entity.tile);
+  const x = Number.isFinite(entityX) ? entityX : entityTile * tileWidth + tileWidth * 0.42;
+  if (!Number.isFinite(x)) return;
+  if (entity.type === "monster") {
+    level.monsterSpawns.push({ x, used: false, variant: entity.variant || "walker" });
+  }
 }
 
 function addStairObstacle(platforms, startX) {
@@ -190,22 +405,46 @@ function createCoins(platforms) {
   return coins;
 }
 
-function addCoinArc(coins, startX, baseY, count, spacing, lift) {
-  for (let i = 0; i < count; i++) {
-    const center = (count - 1) / 2;
-    coins.push({
-      x: startX + i * spacing,
-      y: baseY - lift * Math.max(0, 1 - Math.abs(i - center) / (center + 0.01)),
-      r: 14,
-      spin: 0,
-      collected: false
-    });
+function addCoinPattern(coins, pattern, tileX, tileWidth) {
+  const centerX = tileX + tileWidth / 2;
+  if (pattern === "line3-ground") {
+    addCoinLine(coins, centerX, groundY - 92, 3, 42);
+  } else if (pattern === "line4-jump") {
+    addCoinLine(coins, centerX, groundY - 218, 4, 42);
+  } else if (pattern === "line6-ground") {
+    addCoinLine(coins, centerX, groundY - 96, 6, 38);
+  } else if (pattern === "arc6-jump") {
+    addCoinArc(coins, centerX - 105, groundY - 190, 6, 42, 58);
   }
 }
 
-function spawnEnemy(x = camera + W + 80) {
-  const type = Math.random() < 0.82 ? "walker" : "spitter";
-  const hp = 54;
+function addCoinLine(coins, centerX, y, count, spacing) {
+  const startX = centerX - ((count - 1) * spacing) / 2;
+  for (let i = 0; i < count; i++) {
+    addCoin(coins, startX + i * spacing, y);
+  }
+}
+
+function addCoinArc(coins, startX, baseY, count, spacing, lift) {
+  for (let i = 0; i < count; i++) {
+    const center = (count - 1) / 2;
+    addCoin(coins, startX + i * spacing, baseY - lift * Math.max(0, 1 - Math.abs(i - center) / (center + 0.01)));
+  }
+}
+
+function addCoin(coins, x, y) {
+  coins.push({
+    x,
+    y,
+    r: 14,
+    spin: 0,
+    collected: false
+  });
+}
+
+function spawnEnemy(x = camera + W + 80, forcedType = null) {
+  const type = forcedType || (Math.random() < 0.82 ? "walker" : "spitter");
+  const hp = type === "walker" ? bulletDamage : bulletDamage * 2;
   const h = type === "walker" ? 86 : 104;
   enemies.push({
     type,
@@ -225,6 +464,7 @@ function spawnEnemy(x = camera + W + 80) {
 function shoot() {
   if (player.shootCooldown > 0 || paused || gameOver) return;
   player.shootCooldown = 0.24;
+  shotsFired++;
   const muzzleX = player.x + (player.dir > 0 ? 78 : -8);
   const muzzleY = player.y + 48;
   bullets.push({
@@ -258,6 +498,7 @@ function update(dt) {
   }
 
   const speed = autoRunSpeed + Math.min(75, wave * 7);
+  elapsedTime += dt;
   player.vx = speed;
   player.dir = 1;
   if (shouldAutoShoot()) shoot();
@@ -272,12 +513,16 @@ function update(dt) {
   collideWithPlatforms(player);
 
   if (player.y > H + 260) damagePlayer(100);
+  if (player.x >= world.width - player.w - 70) completeLevel();
 
   camera = clamp(player.x - W * 0.28, 0, world.width - W);
-  spawnTimer -= dt;
-  if (spawnTimer <= 0) {
-    spawnEnemy();
-    spawnTimer = Math.max(1.25, 2.35 - wave * 0.06) + Math.random() * 1.15;
+  spawnLevelMonsters();
+  if (!monsterSpawns.length) {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnEnemy();
+      spawnTimer = Math.max(1.25, 2.35 - wave * 0.06) + Math.random() * 1.15;
+    }
   }
   wave = 1 + Math.floor(score / 700);
   score += dt * speed * 0.06;
@@ -304,6 +549,7 @@ function update(dt) {
     coin.spin += dt * 8;
     if (rectsOverlap(player.x + 8, player.y + 8, player.w - 16, player.h - 16, coin.x - coin.r, coin.y - coin.r, coin.r * 2, coin.r * 2)) {
       coin.collected = true;
+      coinsCollected++;
       score += 25;
       splash(coin.x, coin.y, 10, "#ffd84d");
     }
@@ -340,7 +586,7 @@ function update(dt) {
   bullets.forEach(b => {
     enemies.forEach(enemy => {
       if (enemy.hp > 0 && rectsOverlap(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2, enemy.x, enemy.y, enemy.w, enemy.h)) {
-        enemy.hp -= 18;
+        enemy.hp -= bulletDamage;
         b.life = 0;
         shake = 5;
         splash(b.x, b.y, 16);
@@ -350,7 +596,10 @@ function update(dt) {
 
   enemies = enemies.filter(enemy => {
     if (enemy.hp > 0) return true;
-    score += enemy.x > camera - 200 ? 110 : 0;
+    if (enemy.x > camera - 200) {
+      monstersDefeated++;
+      score += 110;
+    }
     splash(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, 28, "#7df36f");
     return false;
   });
@@ -378,6 +627,23 @@ function shouldAutoShoot() {
   });
 }
 
+function createInitialEnemies() {
+  monsterSpawns.forEach(spawn => {
+    spawn.used = false;
+  });
+  return [];
+}
+
+function spawnLevelMonsters() {
+  monsterSpawns.forEach(spawn => {
+    if (spawn.used) return;
+    if (spawn.x > player.x + 130 && spawn.x < camera + W + 180) {
+      spawnEnemy(spawn.x, spawn.variant);
+      spawn.used = true;
+    }
+  });
+}
+
 function jump() {
   if (paused || gameOver) return;
   if (player.grounded) {
@@ -397,12 +663,39 @@ function damagePlayer(amount) {
     player.hp = 0;
     gameOver = true;
     paused = true;
-    overlay.querySelector("h1").textContent = "Game Over";
-    overlay.querySelector("p").textContent = `Skor akhir ${Math.floor(score)}. Monster tumbuhan menang ronde ini.`;
+    showEndGamePanel("End Game!");
     startBtn.textContent = "Main Lagi";
     overlay.classList.remove("hidden");
     music.pause();
   }
+}
+
+function completeLevel() {
+  if (gameOver) return;
+  gameOver = true;
+  paused = true;
+  score += Math.max(0, Math.floor(player.hp)) * 4;
+  showEndGamePanel("Berhasil!");
+  startBtn.textContent = "Main Lagi";
+  overlay.classList.remove("hidden");
+  music.pause();
+}
+
+function showEndGamePanel(title) {
+  const totalCoins = world.coins.length;
+  endTitle.textContent = title;
+  statCoins.textContent = `${coinsCollected}/${totalCoins}`;
+  statMonsters.textContent = String(monstersDefeated);
+  statScore.textContent = String(Math.floor(score));
+  overlay.classList.remove("show-logo");
+  overlay.classList.add("end-mode");
+}
+
+function formatTime(seconds) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const rest = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
 function collideWithPlatforms(actor) {
@@ -449,6 +742,7 @@ function draw() {
   ctx.translate(-camera, 0);
   drawRoadTrees();
   drawPlatforms();
+  drawFinishLine();
   drawCoins();
   enemies.forEach(drawEnemy);
   drops.forEach(drawDrop);
@@ -473,16 +767,13 @@ function drawBackground() {
 
 function drawRoadTrees() {
   if (!assets.tree.complete || assets.tree.naturalWidth <= 0) return;
-  const treeW = 340;
-  const treeH = treeW * assets.tree.naturalHeight / assets.tree.naturalWidth;
-  const step = treeW - 26;
-  world.platforms
-    .filter(platform => platform.y === groundY)
-    .forEach(platform => {
-      if (platform.x + platform.w < camera - treeW || platform.x > camera + W + treeW) return;
-      for (let x = platform.x; x + treeW <= platform.x + platform.w; x += step) {
-        ctx.drawImage(assets.tree, x, platform.y - treeH + 8, treeW, treeH);
-      }
+  const treeH = 400;
+  const treeW = treeH * assets.tree.naturalWidth / assets.tree.naturalHeight;
+  levelObjects
+    .filter(object => object.type === "tree")
+    .forEach(object => {
+      if (object.x < camera - treeW || object.x > camera + W + treeW) return;
+      ctx.drawImage(assets.tree, object.x - treeW / 2, groundY - treeH + 8, treeW, treeH);
     });
 }
 
@@ -508,6 +799,25 @@ function drawPlatforms() {
   });
 }
 
+function drawFinishLine() {
+  const x = world.width - 112;
+  if (x < camera - 80 || x > camera + W + 140) return;
+  ctx.save();
+  ctx.fillStyle = "#3c2413";
+  ctx.fillRect(x, groundY - 190, 12, 190);
+  ctx.fillStyle = "#27d7ff";
+  ctx.beginPath();
+  ctx.moveTo(x + 12, groundY - 184);
+  ctx.lineTo(x + 108, groundY - 154);
+  ctx.lineTo(x + 12, groundY - 124);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#fff36b";
+  ctx.fillRect(x + 30, groundY - 166, 18, 18);
+  ctx.fillRect(x + 66, groundY - 154, 18, 18);
+  ctx.restore();
+}
+
 function drawLandPlatform(platform) {
   const scale = platform.h / assets.land.naturalHeight;
   const tileW = assets.land.naturalWidth * scale;
@@ -528,7 +838,6 @@ function drawCoins() {
     const pulse = Math.sin(coin.spin) * 0.18;
     ctx.save();
     ctx.translate(coin.x, coin.y);
-    ctx.scale(0.78 + pulse, 1);
     const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 28);
     glow.addColorStop(0, "rgba(255, 252, 172, 0.75)");
     glow.addColorStop(1, "rgba(255, 200, 38, 0)");
@@ -536,17 +845,24 @@ function drawCoins() {
     ctx.beginPath();
     ctx.arc(0, 0, 28, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#ffd23f";
-    ctx.beginPath();
-    ctx.arc(0, 0, coin.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#a86412";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.fillStyle = "#fff1a6";
-    ctx.beginPath();
-    ctx.arc(-4, -5, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (assets.coin.complete && assets.coin.naturalWidth > 0) {
+      const size = coin.r * 2.55;
+      ctx.scale(0.94 + pulse, 1);
+      ctx.drawImage(assets.coin, -size / 2, -size / 2, size, size);
+    } else {
+      ctx.scale(0.78 + pulse, 1);
+      ctx.fillStyle = "#ffd23f";
+      ctx.beginPath();
+      ctx.arc(0, 0, coin.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#a86412";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.fillStyle = "#fff1a6";
+      ctx.beginPath();
+      ctx.arc(-4, -5, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   });
 }
@@ -757,8 +1073,7 @@ startBtn.addEventListener("click", () => {
     playMusic();
     return;
   }
-  overlay.querySelector("h1").textContent = "Bobo Contra";
-  overlay.querySelector("p").textContent = "Bobo berlari otomatis. Tap layar atau tekan panah atas untuk lompat.";
+  setOverlayContent("Bobo Contra", "Bobo berlari otomatis. Tap layar atau tekan panah atas untuk lompat.", true);
   startBtn.textContent = "Mulai";
   resetGame();
 });
@@ -775,8 +1090,7 @@ function togglePause() {
   pauseBtn.textContent = paused ? "▶" : "II";
   if (paused) {
     music.pause();
-    overlay.querySelector("h1").textContent = "Pause";
-    overlay.querySelector("p").textContent = "Bobo siap lari lagi. Tap lanjut untuk kembali.";
+    setOverlayContent("Pause", "Bobo siap lari lagi. Tap lanjut untuk kembali.");
     startBtn.textContent = "Lanjut";
     overlay.classList.remove("hidden");
   } else {

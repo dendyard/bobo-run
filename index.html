@@ -26,9 +26,35 @@
         <button id="pauseBtn" type="button" title="Pause">II</button>
       </section>
 
-      <section class="overlay" id="overlay">
-        <h1>Bobo Contra</h1>
+      <section class="overlay show-logo" id="overlay">
+        <img class="game-logo" src="assets/gamelogo.png" alt="Bobo Run">
+        <h1 class="overlay-title">Bobo Contra</h1>
         <p>Bobo berlari otomatis. Tap layar atau tekan panah atas untuk lompat.</p>
+        <div class="end-panel" id="endPanel" aria-label="Statistik akhir permainan">
+          <div class="end-banner">
+            <img src="assets/bg-stars-stat.png" alt="">
+            <strong id="endTitle">End Game!</strong>
+          </div>
+          <div class="end-stars" aria-hidden="true">
+            <img src="assets/star.png" alt="">
+            <img src="assets/star.png" alt="">
+            <img src="assets/star.png" alt="">
+          </div>
+          <div class="end-stats">
+            <div class="end-stat-row">
+              <span>Koin</span>
+              <strong id="statCoins">0/0</strong>
+            </div>
+            <div class="end-stat-row">
+              <span>Musuh Dikalahkan</span>
+              <strong id="statMonsters">0</strong>
+            </div>
+            <div class="end-stat-row">
+              <span>Skor</span>
+              <strong id="statScore">0</strong>
+            </div>
+          </div>
+        </div>
         <button id="startBtn" type="button">Mulai</button>
       </section>
 

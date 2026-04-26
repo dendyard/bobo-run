@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "name": "Level 1 - Hutan Awal",
+  "tileWidth": 180,
+  "legend": {
+    "0": {
+      "name": "Tanah",
+      "terrain": "ground"
+    },
+    "1": {
+      "name": "Pohon",
+      "terrain": "ground",
+      "decoration": "tree"
+    },
+    "2": {
+      "name": "Rintangan",
+      "terrain": "ground",
+      "obstacle": "block"
+    },
+    "3": {
+      "name": "Monster",
+      "terrain": "ground",
+      "spawn": "monster"
+    },
+    "C": {
+      "name": "Bonus koin",
+      "terrain": "ground",
+      "item": "coin",
+      "coinPattern": "line3-ground"
+    },
+    "K3": {
+      "name": "3 koin di tanah",
+      "terrain": "ground",
+      "coinPattern": "line3-ground"
+    },
+    "K4": {
+      "name": "4 koin lompat",
+      "terrain": "ground",
+      "coinPattern": "line4-jump"
+    },
+    "K6": {
+      "name": "6 koin di tanah",
+      "terrain": "ground",
+      "coinPattern": "line6-ground"
+    },
+    "KA": {
+      "name": "6 koin melengkung",
+      "terrain": "ground",
+      "coinPattern": "arc6-jump"
+    },
+    "S": {
+      "name": "Tangga naik 3 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-up",
+      "stairSteps": 3
+    },
+    "T": {
+      "name": "Tangga turun 3 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-down",
+      "stairSteps": 3
+    },
+    "S2": {
+      "name": "Tangga naik 2 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-up",
+      "stairSteps": 2
+    },
+    "T2": {
+      "name": "Tangga turun 2 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-down",
+      "stairSteps": 2
+    },
+    "S5": {
+      "name": "Tangga naik 5 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-up",
+      "stairSteps": 5
+    },
+    "T5": {
+      "name": "Tangga turun 5 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-down",
+      "stairSteps": 5
+    },
+    "P5": {
+      "name": "Bukit tangga 5 susun",
+      "terrain": "ground",
+      "obstacle": "stairs-peak",
+      "stairSteps": 5
+    }
+  },
+  "rows": [
+    "0 K3 1 0 2 K4 S2 T2 3 0 1 K6 S T 0 3 0 KA 1 2",
+    "0 3 K3 1 0 S5 T5 K4 3 0 1 K6 P5 2 KA 3 0 1 K4 2",
+    "0 K6 3 0 1 KA 2 0 K3 3 1 S T 0 K4 S5 T5 1 C 0"
+  ],
+  "entities": [
+    {
+      "type": "monster",
+      "tile": 52,
+      "variant": "spitter"
+    }
+  ]
+}

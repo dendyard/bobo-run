@@ -133,6 +133,191 @@ button {
   display: none;
 }
 
+.game-logo {
+  display: block;
+  width: min(88vw, 620px);
+  height: auto;
+  margin: 0 auto clamp(2px, 1vw, 10px);
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.44));
+  transform-origin: 50% 58%;
+  animation: logoAppear 900ms cubic-bezier(0.2, 1.18, 0.34, 1) both,
+    logoFloat 2600ms ease-in-out 900ms infinite;
+}
+
+.overlay:not(.show-logo) .game-logo {
+  display: none;
+}
+
+.overlay.show-logo .overlay-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.end-panel {
+  display: none;
+}
+
+.overlay.end-mode {
+  gap: 0;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(3, 7, 9, 0.18), rgba(3, 7, 9, 0.7));
+}
+
+.overlay.end-mode .game-logo,
+.overlay.end-mode .overlay-title,
+.overlay.end-mode > p {
+  display: none;
+}
+
+.overlay.end-mode .end-panel {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  width: min(90vw, 430px);
+  aspect-ratio: 880 / 1255;
+  padding: clamp(156px, 42vw, 210px) clamp(42px, 11vw, 56px) clamp(90px, 22vw, 118px);
+  background-image: url("assets/board_stat.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(0 24px 34px rgba(0, 0, 0, 0.42));
+  animation: statsAppear 520ms cubic-bezier(0.2, 1.1, 0.34, 1) both;
+}
+
+.end-banner {
+  position: absolute;
+  top: clamp(34px, 8.6vw, 48px);
+  left: 50%;
+  width: min(70vw, 330px);
+  transform: translateX(-50%);
+}
+
+.end-banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 9px 0 rgba(21, 88, 132, 0.45));
+}
+
+.end-banner strong {
+  position: absolute;
+  inset: 21% 8% auto;
+  color: #ffffff;
+  font-size: clamp(24px, 7.2vw, 36px);
+  font-weight: 1000;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 4px 0 #8a2d18, 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.end-stars {
+  position: absolute;
+  top: clamp(98px, 24vw, 126px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1vw, 14px);
+  width: min(62vw, 270px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.end-stars img {
+  width: clamp(50px, 14vw, 68px);
+  height: auto;
+  filter: drop-shadow(0 7px 0 rgba(142, 83, 9, 0.38));
+  animation: starPop 520ms cubic-bezier(0.2, 1.2, 0.34, 1) both;
+}
+
+.end-stars img:nth-child(2) {
+  width: clamp(66px, 18vw, 86px);
+  margin-top: -9px;
+  animation-delay: 110ms;
+}
+
+.end-stars img:nth-child(3) {
+  animation-delay: 220ms;
+}
+
+.end-panel h2 {
+  margin: 0 0 8px;
+  color: #7a340c;
+  font-size: clamp(21px, 4.8vw, 34px);
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.6);
+}
+
+.end-stats {
+  display: grid;
+  gap: clamp(14px, 3.6vw, 20px);
+  width: min(100%, 320px);
+}
+
+.end-stat-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: clamp(54px, 13vw, 68px);
+  padding: 0 clamp(6px, 2vw, 12px);
+  border: 0;
+  border-bottom: 2px solid rgba(151, 84, 18, 0.2);
+  background: transparent;
+  box-shadow: none;
+}
+
+.end-stat-row:last-child {
+  border-bottom: 0;
+}
+
+.end-stat-row span,
+.end-stat-row strong {
+  color: #673009;
+  font-weight: 1000;
+  letter-spacing: 0;
+  text-shadow: 0 2px 0 rgba(255, 244, 190, 0.8);
+}
+
+.end-stat-row span {
+  font-size: clamp(16px, 4.5vw, 22px);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.end-stat-row strong {
+  font-size: clamp(24px, 6.4vw, 34px);
+  text-align: right;
+}
+
+.overlay.end-mode #startBtn {
+  width: min(58vw, 270px);
+  aspect-ratio: 312 / 125;
+  min-height: 0;
+  margin-top: clamp(-92px, -18vw, -70px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: url("assets/mainlagi.png") center / contain no-repeat;
+  color: transparent;
+  font-size: 0;
+  text-shadow: none;
+  box-shadow: none;
+  filter: drop-shadow(0 10px 0 rgba(4, 86, 148, 0.42)) drop-shadow(0 16px 24px rgba(0, 0, 0, 0.24));
+  z-index: 2;
+}
+
+.overlay.end-mode #startBtn:active {
+  transform: translateY(4px);
+  box-shadow: none;
+  filter: drop-shadow(0 5px 0 rgba(4, 86, 148, 0.42)) drop-shadow(0 10px 18px rgba(0, 0, 0, 0.22));
+}
+
 .overlay h1 {
   margin: 0;
   color: #f8fff6;
@@ -164,6 +349,69 @@ button {
 .overlay button:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #0b7f91, 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+@keyframes logoAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(34px) scale(0.72) rotate(-5deg);
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0));
+  }
+
+  58% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.07) rotate(1.6deg);
+  }
+
+  78% {
+    transform: translateY(3px) scale(0.98) rotate(-0.8deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+    filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.44));
+  }
+}
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+
+  50% {
+    transform: translateY(-7px) rotate(0.45deg);
+  }
+}
+
+@keyframes statsAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(34px) scale(0.82);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes starPop {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.2) rotate(-12deg);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.12) rotate(5deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
 }
 
 .touch-controls {
