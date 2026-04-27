@@ -11,19 +11,27 @@
       <canvas id="game" width="720" height="1280" aria-label="Bobo Contra game canvas"></canvas>
 
       <section class="hud" aria-label="Status permainan">
+        <div class="hud-logo" aria-label="Bobo Run">
+          <strong>Bobo</strong>
+          <span>Run</span>
+        </div>
         <div class="meter">
           <span>HP</span>
           <div class="bar"><i id="hpBar"></i></div>
         </div>
+        <div class="stat timer-stat">
+          <span class="hud-clock" aria-hidden="true"></span>
+          <strong id="time">00:00</strong>
+        </div>
         <div class="stat">
-          <span>Skor</span>
+          <img class="hud-star" src="assets/star.png" alt="">
           <strong id="score">0</strong>
         </div>
-        <div class="stat">
-          <span>Gelombang</span>
+        <div class="stat wave-stat">
+          <span>Lv</span>
           <strong id="wave">1</strong>
         </div>
-        <button id="pauseBtn" type="button" title="Pause">II</button>
+        <button id="pauseBtn" type="button" title="Pause">♪</button>
       </section>
 
       <section class="overlay show-logo" id="overlay">

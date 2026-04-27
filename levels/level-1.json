@@ -22,6 +22,11 @@
       "terrain": "ground",
       "spawn": "monster"
     },
+    "F": {
+      "name": "Kalong terbang",
+      "terrain": "ground",
+      "spawn": "flying"
+    },
     "C": {
       "name": "Bonus koin",
       "terrain": "ground",
@@ -92,15 +97,20 @@
     }
   },
   "rows": [
-    "0 K3 1 0 2 K4 S2 T2 3 0 1 K6 S T 0 3 0 KA 1 2",
-    "0 3 K3 1 0 S5 T5 K4 3 0 1 K6 P5 2 KA 3 0 1 K4 2",
-    "0 K6 3 0 1 KA 2 0 K3 3 1 S T 0 K4 S5 T5 1 C 0"
+    "0 K3 1 0 2 K4 S2 T2 3 0 1 K6 S T F 3 0 KA 1 2",
+    "0 3 K3 1 0 S5 T5 K4 F 0 1 K6 P5 2 KA 3 0 F K4 2",
+    "0 K6 3 0 1 KA F 0 K3 3 1 S T 0 K4 S5 T5 1 C 0"
   ],
   "entities": [
     {
       "type": "monster",
       "tile": 52,
       "variant": "spitter"
+    },
+    {
+      "type": "flying",
+      "tile": 56,
+      "y": 500
     }
   ]
 }

@@ -18,6 +18,7 @@ Contoh kode:
   "1": { "name": "Pohon", "terrain": "ground", "decoration": "tree" },
   "2": { "name": "Rintangan", "terrain": "ground", "obstacle": "block" },
   "3": { "name": "Monster", "terrain": "ground", "spawn": "monster" },
+  "F": { "name": "Kalong terbang", "terrain": "ground", "spawn": "flying" },
   "K3": { "name": "3 koin di tanah", "terrain": "ground", "coinPattern": "line3-ground" },
   "K4": { "name": "4 koin lompat", "terrain": "ground", "coinPattern": "line4-jump" },
   "K6": { "name": "6 koin di tanah", "terrain": "ground", "coinPattern": "line6-ground" },
@@ -35,11 +36,18 @@ Contoh map:
 ```json
 "rows": [
   "0 K3 1 0 2 K4 0 3",
-  "0 K6 0 S T KA 0 3"
+  "0 K6 0 S T KA 0 F"
 ]
 ```
 
 Untuk runner side-scrolling saat ini, setiap kode dibaca berurutan dari kiri ke kanan. Baris kedua melanjutkan baris pertama.
+
+## Musuh
+
+Kode musuh yang sudah tersedia:
+
+- `3`: monster tanah.
+- `F`: kalong terbang. Saat kalong datang dari depan, Bobo otomatis menembak 45 derajat ke atas.
 
 ## Pola Koin dan Tangga
 

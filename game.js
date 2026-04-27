@@ -3,6 +3,7 @@ const ctx = canvas.getContext("2d");
 const hpBar = document.getElementById("hpBar");
 const scoreEl = document.getElementById("score");
 const waveEl = document.getElementById("wave");
+const timeEl = document.getElementById("time");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
@@ -32,7 +33,8 @@ const assets = {
   background: loadImage("assets/mobile-background.png"),
   land: loadImage("assets/land-platform.png"),
   tree: loadImage("assets/pohon.png"),
-  coin: loadImage("assets/koin.png")
+  coin: loadImage("assets/koin.png"),
+  flyingEnemy: loadImage("assets/kalong.png")
 };
 
 const runFrames = [
@@ -212,7 +214,7 @@ function resetGame() {
   shake = 0;
   gameOver = false;
   paused = false;
-  pauseBtn.textContent = "II";
+  pauseBtn.textContent = "♪";
   overlay.classList.add("hidden");
   playMusic();
 }
@@ -305,8 +307,13 @@ function createLevelFromCells(cells, tileWidth) {
       addPeakStairPlatforms(platforms, x, tileWidth, cell.stairSteps);
     }
 
-    if (cell.spawn === "monster") {
-      monsterSpawns.push({ x: x + tileWidth * 0.42, used: false });
+    if (cell.spawn === "monster" || cell.spawn === "flying") {
+      monsterSpawns.push({
+        x: x + tileWidth * 0.42,
+        y: cell.spawn === "flying" ? groundY - 250 : null,
+        used: false,
+        variant: cell.spawn === "flying" ? "flying" : null
+      });
     }
 
     if (cell.item === "coin" || cell.coinPattern) {
@@ -363,6 +370,14 @@ function addLevelEntity(level, entity, tileWidth) {
   if (!Number.isFinite(x)) return;
   if (entity.type === "monster") {
     level.monsterSpawns.push({ x, used: false, variant: entity.variant || "walker" });
+  }
+  if (entity.type === "flying") {
+    level.monsterSpawns.push({
+      x,
+      y: Number.isFinite(Number(entity.y)) ? Number(entity.y) : groundY - 250,
+      used: false,
+      variant: "flying"
+    });
   }
 }
 
@@ -444,15 +459,16 @@ function addCoin(coins, x, y) {
 
 function spawnEnemy(x = camera + W + 80, forcedType = null) {
   const type = forcedType || (Math.random() < 0.82 ? "walker" : "spitter");
-  const hp = type === "walker" ? bulletDamage : bulletDamage * 2;
-  const h = type === "walker" ? 86 : 104;
+  const hp = type === "spitter" ? bulletDamage * 2 : bulletDamage;
+  const h = type === "flying" ? 41 : type === "walker" ? 86 : 104;
   enemies.push({
     type,
     x,
-    y: groundY - h,
-    w: type === "walker" ? 70 : 88,
+    y: type === "flying" ? groundY - 260 : groundY - h,
+    baseY: type === "flying" ? groundY - 260 : null,
+    w: type === "flying" ? 41 : type === "walker" ? 70 : 88,
     h,
-    vx: -(82 + wave * 12 + Math.random() * 35),
+    vx: -(type === "flying" ? 118 : 82 + wave * 12 + Math.random() * 35),
     hp,
     maxHp: hp,
     attack: 0.6 + Math.random() * 1.2,
@@ -465,12 +481,15 @@ function shoot() {
   if (player.shootCooldown > 0 || paused || gameOver) return;
   player.shootCooldown = 0.24;
   shotsFired++;
+  const shootAngle = getShootAngle();
+  const bulletSpeed = 680;
   const muzzleX = player.x + (player.dir > 0 ? 78 : -8);
   const muzzleY = player.y + 48;
   bullets.push({
     x: muzzleX,
     y: muzzleY,
-    vx: player.dir * 680,
+    vx: Math.cos(shootAngle) * bulletSpeed,
+    vy: Math.sin(shootAngle) * bulletSpeed,
     life: 0.95,
     r: 8
   });
@@ -478,8 +497,8 @@ function shoot() {
     particles.push({
       x: muzzleX,
       y: muzzleY,
-      vx: player.dir * (220 + Math.random() * 240),
-      vy: -90 + Math.random() * 180,
+      vx: Math.cos(shootAngle) * (220 + Math.random() * 240),
+      vy: Math.sin(shootAngle) * (220 + Math.random() * 240) + (-45 + Math.random() * 90),
       life: 0.18 + Math.random() * 0.18,
       max: 0.36,
       color: Math.random() < 0.55 ? "#83f1ff" : "#1ab7ff",
@@ -529,6 +548,7 @@ function update(dt) {
 
   bullets.forEach(b => {
     b.x += b.vx * dt;
+    b.y += b.vy * dt;
     b.life -= dt;
     b.y += Math.sin((b.life + b.x) * 0.08) * 0.8;
   });
@@ -557,11 +577,16 @@ function update(dt) {
 
   enemies.forEach(enemy => {
     enemy.phase += dt;
-    enemy.vy = (enemy.vy || 0) + gravity * dt;
-    enemy.x += enemy.vx * dt;
-    enemy.y += enemy.vy * dt;
-    collideWithPlatforms(enemy);
-    if (enemy.grounded) enemy.y = groundY - enemy.h;
+    if (enemy.type === "flying") {
+      enemy.x += enemy.vx * dt;
+      enemy.y = enemy.baseY + Math.sin(enemy.phase * 3.2) * 24;
+    } else {
+      enemy.vy = (enemy.vy || 0) + gravity * dt;
+      enemy.x += enemy.vx * dt;
+      enemy.y += enemy.vy * dt;
+      collideWithPlatforms(enemy);
+      if (enemy.grounded) enemy.y = groundY - enemy.h;
+    }
     if (enemy.x < camera - 220) enemy.hp = 0;
 
     enemy.attack -= dt;
@@ -604,7 +629,7 @@ function update(dt) {
     return false;
   });
 
-  bullets = bullets.filter(b => b.life > 0 && b.x > camera - 80 && b.x < camera + W + 120);
+  bullets = bullets.filter(b => b.life > 0 && b.x > camera - 80 && b.x < camera + W + 120 && b.y > -80 && b.y < H + 80);
   drops = drops.filter(d => d.life > 0 && d.x > camera - 100 && d.x < camera + W + 100);
   particles.forEach(p => {
     p.x += p.vx * dt;
@@ -618,13 +643,24 @@ function update(dt) {
   hpBar.style.transform = `scaleX(${Math.max(0, player.hp / player.maxHp)})`;
   scoreEl.textContent = String(Math.floor(score));
   waveEl.textContent = String(wave);
+  timeEl.textContent = formatTime(elapsedTime);
 }
 
 function shouldAutoShoot() {
   return enemies.some(enemy => {
     const distance = enemy.x - player.x;
-    return enemy.hp > 0 && distance > 40 && distance < 700 && Math.abs(enemy.y - player.y) < 160;
+    if (enemy.hp <= 0 || distance <= 40 || distance >= 700) return false;
+    if (enemy.type === "flying") return enemy.y < player.y + 40;
+    return Math.abs(enemy.y - player.y) < 160;
   });
+}
+
+function getShootAngle() {
+  const hasFlyingTarget = enemies.some(enemy => {
+    const distance = enemy.x - player.x;
+    return enemy.type === "flying" && enemy.hp > 0 && distance > 35 && distance < 620;
+  });
+  return hasFlyingTarget ? -Math.PI / 4 : 0;
 }
 
 function createInitialEnemies() {
@@ -639,6 +675,10 @@ function spawnLevelMonsters() {
     if (spawn.used) return;
     if (spawn.x > player.x + 130 && spawn.x < camera + W + 180) {
       spawnEnemy(spawn.x, spawn.variant);
+      if (spawn.variant === "flying" && Number.isFinite(spawn.y)) {
+        enemies[enemies.length - 1].y = spawn.y;
+        enemies[enemies.length - 1].baseY = spawn.y;
+      }
       spawn.used = true;
     }
   });
@@ -935,6 +975,10 @@ function drawFallbackRabbit() {
 }
 
 function drawEnemy(enemy) {
+  if (enemy.type === "flying") {
+    drawFlyingEnemy(enemy);
+    return;
+  }
   const sway = Math.sin(enemy.phase * 5) * 4;
   ctx.save();
   ctx.translate(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
@@ -967,6 +1011,29 @@ function drawEnemy(enemy) {
   }
   ctx.fillStyle = "#a6ff6e";
   ctx.fillRect(-enemy.w / 2, -enemy.h / 2 - 14, enemy.w * Math.max(0, enemy.hp / enemy.maxHp), 5);
+  ctx.restore();
+}
+
+function drawFlyingEnemy(enemy) {
+  const flap = Math.sin(enemy.phase * 8) * 5;
+  ctx.save();
+  ctx.translate(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2 + flap);
+  if (assets.flyingEnemy.complete && assets.flyingEnemy.naturalWidth > 0) {
+    const drawW = 48;
+    const drawH = drawW * assets.flyingEnemy.naturalHeight / assets.flyingEnemy.naturalWidth;
+    ctx.drawImage(assets.flyingEnemy, -drawW / 2, -drawH / 2, drawW, drawH);
+  } else {
+    ctx.fillStyle = "#7b26b6";
+    roundedRect(-enemy.w / 2, -enemy.h / 2, enemy.w, enemy.h, 20);
+    ctx.fill();
+    ctx.fillStyle = "#ffe85c";
+    ctx.beginPath();
+    ctx.arc(-14, -8, 7, 0, Math.PI * 2);
+    ctx.arc(14, -8, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#a6ff6e";
+  ctx.fillRect(-enemy.w / 2, -enemy.h / 2 - 12, enemy.w * Math.max(0, enemy.hp / enemy.maxHp), 5);
   ctx.restore();
 }
 
@@ -1068,7 +1135,7 @@ canvas.addEventListener("pointerdown", event => {
 startBtn.addEventListener("click", () => {
   if (started && paused && !gameOver && startBtn.textContent === "Lanjut") {
     paused = false;
-    pauseBtn.textContent = "II";
+    pauseBtn.textContent = "♪";
     overlay.classList.add("hidden");
     playMusic();
     return;
@@ -1087,7 +1154,7 @@ function togglePause() {
     return;
   }
   paused = !paused;
-  pauseBtn.textContent = paused ? "▶" : "II";
+  pauseBtn.textContent = paused ? "▶" : "♪";
   if (paused) {
     music.pause();
     setOverlayContent("Pause", "Bobo siap lari lagi. Tap lanjut untuk kembali.");
