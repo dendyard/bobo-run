@@ -235,6 +235,10 @@ button {
   display: none;
 }
 
+.overlay.show-logo {
+  background: url("assets/bgopening.png") center / cover no-repeat;
+}
+
 .game-logo {
   display: block;
   width: min(88vw, 620px);
@@ -246,7 +250,8 @@ button {
     logoFloat 2600ms ease-in-out 900ms infinite;
 }
 
-.overlay:not(.show-logo) .game-logo {
+.overlay:not(.show-logo) .game-logo,
+.overlay.show-logo .game-logo {
   display: none;
 }
 
@@ -257,6 +262,10 @@ button {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+.overlay.show-logo > p {
+  display: none;
 }
 
 .end-panel {
@@ -448,9 +457,35 @@ button {
   box-shadow: 0 6px 0 #0b7f91, 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 
+.overlay.show-logo #startBtn {
+  position: absolute;
+  left: 50%;
+  bottom: 150px;
+  width: min(58vw, 250px);
+  aspect-ratio: 300 / 111;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: url("assets/mulai.png") center / contain no-repeat;
+  color: transparent;
+  font-size: 0;
+  text-shadow: none;
+  box-shadow: none;
+  filter: none;
+  transform: translateX(-50%);
+}
+
 .overlay button:active {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #0b7f91, 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.overlay.show-logo #startBtn:active {
+  transform: translate(-50%, 4px);
+  box-shadow: none;
+  filter: none;
 }
 
 @keyframes logoAppear {
