@@ -239,6 +239,10 @@ button {
   background: url("assets/bgopening.png") center / cover no-repeat;
 }
 
+.game-shell:has(.overlay.show-logo:not(.hidden)) .hud {
+  display: none;
+}
+
 .game-logo {
   display: block;
   width: min(88vw, 620px);
